@@ -1,0 +1,30 @@
+version: '2'
+
+services:
+  peer-base:
+    image: hyperledger/fabric-peer:2.2.0
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=university-fabric-network_fabric
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=false
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true
+      - CORE_PEER_GOSSIP_ORGLEADER=false
+      - CORE_PEER_PROFILE_ENABLED=true
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+ 
+  orderer-base:
+    image: hyperledger/fabric-orderer:2.2.0
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/var/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=false
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer

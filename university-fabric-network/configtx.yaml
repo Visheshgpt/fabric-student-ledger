@@ -1,0 +1,207 @@
+# =============================================================================
+# configtx.yaml — University Student Activity Ledger (Fabric v2.2, POC)
+# =============================================================================
+#
+# Network topology:
+#   OrdererOrg   — 1 solo orderer  (orderer.university.com:7050)
+#   UniversityOrg — peer0 (registrar office)       :7051
+#   DepartmentOrg — peer0 (dept / library / finance):9051
+#
+# Generate artifacts:
+#   export FABRIC_CFG_PATH=$PWD
+#   cryptogen generate --config=./crypto-config.yaml
+#   configtxgen -profile UniversityGenesis   -channelID system-channel -outputBlock ./channel-artifacts/genesis.block
+#   configtxgen -profile UniversityChannel   -channelID universitychannel -outputCreateChannelTx ./channel-artifacts/channel.tx
+#   configtxgen -profile UniversityChannel   -channelID universitychannel -outputAnchorPeersUpdate ./channel-artifacts/UniversityMSPanchors.tx -asOrg UniversityOrg
+#   configtxgen -profile UniversityChannel   -channelID universitychannel -outputAnchorPeersUpdate ./channel-artifacts/DepartmentMSPanchors.tx -asOrg DepartmentOrg
+# =============================================================================
+
+Organizations:
+
+  # ── Orderer Organisation ───────────────────────────────────────────────────
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID:   OrdererMSP
+    MSPDir: crypto-config/ordererOrganizations/university.com/msp
+
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+
+  # ── University Org (Registrar Office) ─────────────────────────────────────
+  # Users registered here carry role=registrar or role=admin in their certs.
+  - &UniversityOrg
+    Name: UniversityOrg 
+    ID:   UniversityMSP
+    MSPDir: crypto-config/peerOrganizations/university.edu/msp
+
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('UniversityMSP.admin', 'UniversityMSP.peer', 'UniversityMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('UniversityMSP.admin', 'UniversityMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('UniversityMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('UniversityMSP.peer')"
+
+    AnchorPeers:
+      - Host: peer0.university.edu
+        Port: 7051
+
+  # ── Department Org (CS / EE / Finance / Library staff) ────────────────────
+  # Users registered here carry role=staff and department=<X> in their certs.
+  - &DepartmentOrg
+    Name: DepartmentOrg
+    ID:   DepartmentMSP
+    MSPDir: crypto-config/peerOrganizations/department.university.edu/msp
+
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('DepartmentMSP.admin', 'DepartmentMSP.peer', 'DepartmentMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('DepartmentMSP.admin', 'DepartmentMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('DepartmentMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('DepartmentMSP.peer')"
+
+    AnchorPeers:
+      - Host: peer0.department.university.edu
+        Port: 9051
+
+# =============================================================================
+# Capabilities — keep all at V2_0 for Fabric 2.2
+# =============================================================================
+
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_0: true
+
+# =============================================================================
+# Application defaults
+# =============================================================================
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"   # both peer orgs must endorse
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+# =============================================================================
+# Orderer defaults  (Solo — fine for POC; swap to etcdraft for production)
+# =============================================================================
+
+Orderer: &OrdererDefaults
+  OrdererType: solo
+
+  Addresses:
+    - orderer.university.com:7050
+
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount:   10
+    AbsoluteMaxBytes:  99 MB
+    PreferredMaxBytes: 512 KB
+
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+  Capabilities:
+    <<: *OrdererCapabilities
+
+# =============================================================================
+# Channel defaults
+# =============================================================================
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+# =============================================================================
+# Profiles
+# =============================================================================
+
+Profiles:
+
+  # ── System channel genesis block ──────────────────────────────────────────
+  UniversityGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
+    Consortiums:
+      UniversityConsortium:
+        Organizations:
+          - *UniversityOrg
+          - *DepartmentOrg
+
+  # ── Application channel ───────────────────────────────────────────────────
+  UniversityChannel:
+    Consortium: UniversityConsortium
+    <<: *ChannelDefaults
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *UniversityOrg
+        - *DepartmentOrg
+      Capabilities:
+        <<: *ApplicationCapabilities
