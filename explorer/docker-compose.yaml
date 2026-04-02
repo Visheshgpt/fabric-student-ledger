@@ -1,0 +1,56 @@
+version: '2'
+
+volumes:
+  pgdata:
+  walletstore:
+
+networks:
+  fabric:
+    external:
+      name: university-fabric-network_fabric
+
+services:
+  explorerdb.university.edu:
+    image: hyperledger/explorer-db:latest
+    container_name: explorerdb.university.edu
+    hostname: explorerdb.university.edu
+    environment:
+      - DATABASE_DATABASE=fabricexplorer
+      - DATABASE_USERNAME=hppoc
+      - DATABASE_PASSWORD=password
+    healthcheck:
+      test: "pg_isready -h localhost -p 5432 -q -U postgres"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - fabric
+
+  explorer.university.edu:
+    image: hyperledger/explorer:latest
+    container_name: explorer.university.edu
+    hostname: explorer.university.edu
+    environment:
+      - DATABASE_HOST=explorerdb.university.edu
+      - DATABASE_DATABASE=fabricexplorer
+      - DATABASE_USERNAME=hppoc
+      - DATABASE_PASSWD=password
+      - LOG_LEVEL_APP=info
+      - LOG_LEVEL_DB=info
+      - LOG_LEVEL_CONSOLE=debug
+      - LOG_CONSOLE_STDOUT=true
+      - DISCOVERY_AS_LOCALHOST=false
+    volumes:
+      - ./config.json:/opt/explorer/app/platform/fabric/config.json
+      - ./connection-profile.json:/opt/explorer/app/platform/fabric/connection-profile.json
+      - "../university-fabric-network /crypto-config:/tmp/crypto"
+      - walletstore:/opt/explorer/wallet
+    ports:
+      - 8080:8080
+    depends_on:
+      explorerdb.university.edu:
+        condition: service_healthy
+    networks:
+      - fabric

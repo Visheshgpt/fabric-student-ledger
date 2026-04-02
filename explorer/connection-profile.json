@@ -1,0 +1,43 @@
+{
+  "name": "university-network",
+  "version": "1.0.0",
+  "client": {
+    "tlsEnable": false,
+    "adminCredential": {
+      "id": "exploreradmin",
+      "password": "exploreradminpw"
+    },
+    "enableAuthentication": true,
+    "organization": "UniversityMSP",
+    "connection": {
+      "timeout": {
+        "peer": { "endorser": "300" },
+        "orderer": "300"
+      }
+    }
+  },
+  "channels": {
+    "universitychannel": {
+      "peers": {
+        "peer0.university.edu": {}
+      }
+    }
+  },
+  "organizations": {
+    "UniversityMSP": {
+      "mspid": "UniversityMSP",
+      "adminPrivateKey": {
+        "path": "/tmp/crypto/peerOrganizations/university.edu/users/Admin@university.edu/msp/keystore"
+      },
+      "peers": ["peer0.university.edu"],
+      "signedCert": {
+        "path": "/tmp/crypto/peerOrganizations/university.edu/users/Admin@university.edu/msp/signcerts"
+      }
+    }
+  },
+  "peers": {
+    "peer0.university.edu": {
+      "url": "grpc://peer0.university.edu:7051"
+    }
+  }
+}
